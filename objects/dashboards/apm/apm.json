@@ -1,0 +1,200 @@
+{
+  "__META__!": {
+    "copyright": "Copyright 2023 Cisco Systems, Inc.\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\n     http://www.apache.org/licenses/LICENSE-2.0 \n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License."
+  },
+  "name": "cnao:apm.monitoring",
+  "title": "APM Monitoring",
+  "owner": "owner",
+  "solution": "solution",
+  "tags": [ ],
+  "createdAt": "Oct 18, 2023, 10:14 AM",
+  "updatedAt": "Oct 18, 2023, 10:14 AM",
+  "globals": {
+    "timerange": {
+      "since": "now -1h",
+      "until": "now"
+    },
+    "variables": {
+      "service": [ "all" ],
+      "instanceStatus": [ "all" ],
+      "serviceInstance": [ "all" ]
+    }
+  },
+  "spec": {
+    "mainServices": "/${ globals.variables.service }",
+    "healthFilter": "/${ globals.variables.instanceStatus }",
+    "datasources": {
+      "services": {
+        "type": "uql",
+        "options": {
+          "since": "/${ globals.timerange.since }",
+          "until": "/${ globals.timerange.until }",
+          "queryStr": "/${ 'FETCH attributes(service.name) from entities(apm:service)' }"
+        }
+      },
+      "serviceInstances": {
+        "type": "uql",
+        "options": {
+          "since": "/${ globals.timerange.since }",
+          "until": "/${ globals.timerange.until }",
+          "queryStr": "/${' FETCH attributes(service.instance.id) from entities (apm:service) [ attributes(service.name) in ' & mainServices & ']  .out.to(apm:service_instance) [attributes(status) in ' & healthFilter & ']' }"
+        }
+      }
+    },
+    "view": [
+      [
+        "div",
+        { ".": "flex flex-col h-full w-full grow gap-4 p-4 bg-gray-200" },
+        [
+          [ "p", { ".": "font-bold pl-5" }, "APM Monitoring" ],
+          [
+            "div",
+            { ".": "flex justify-start gap-4" },
+            [
+              [
+                "div",
+                { ".": "flex flex-col justify-start" },
+                [
+                  [
+                    "p",
+                    { ".": "text-sm flex items-center justify-start h-full" },
+                    "Service"
+                  ],
+                  [
+                    "dashify:MultiSelect",
+                    {
+                      ".": "pr-4 w-[400px]",
+                      "showMaxItems": 3,
+                      "value": "/${ globals.variables.service }",
+                      "options": "/${ $sort(data.services.data.{'value': service_name, 'label': service_name, 'shortLabel': service_name}, function($l, $r) { $l.service_name < $r.service_name}) }",
+                      "@change": "/${ function($e) { $setGlobals('/globals/variables/service', [$e.value]) } }"
+                    }
+                  ]
+                ]
+              ],
+              [
+                "div",
+                { ".": "flex flex-col justify-start pl-5" },
+                [
+                  [
+                    "p",
+                    { ".": "text-sm flex items-center justify-start h-full" },
+                    "Instance Status"
+                  ],
+                  [
+                    "dashify:MultiSelect",
+                    {
+                      "className": "pr-4 w-[400px]",
+                      "showMaxItems": 3,
+                      "value": "/${ globals.variables.instanceStatus }",
+                      "options": [
+                        {
+                          "selected": true,
+                          "label": "Critical",
+                          "value": 3
+                        },
+                        {
+                          "selected": true,
+                          "label": "Warning",
+                          "value": 2
+                        },
+                        {
+                          "selected": true,
+                          "label": "Normal",
+                          "value": 0
+                        },
+                        {
+                          "selected": true,
+                          "label": "Unknown",
+                          "value": 1
+                        }
+                      ],
+                      "@change": "/${ function($e) { $setGlobals('/globals/variables/instanceStatus', [$e.value]) } }"
+                    }
+                  ]
+                ]
+              ],
+              [
+                "div",
+                { "className": "flex flex-col justify-start pl-5" },
+                [
+                  [
+                    "div",
+                    {
+                      "className": "text-sm flex items-center justify-start h-full"
+                    },
+                    "Service Instance"
+                  ],
+                  [
+                    "dashify:MultiSelect",
+                    {
+                      "className": "pr-4 w-[400px]",
+                      "showMaxItems": 3,
+                      "value": "/${ globals.variables.serviceInstance }",
+                      "options": "/${ $sort(data.serviceInstances.data.{'value': service_instance_id, 'label': service_instance_id, 'shortLabel': service_instance_id }, function($l, $r) { $l.service_instance_id < $r.service_instance_id}) }",
+                      "@change": "/${ function($e) { $setGlobals('/globals/variables/serviceInstance', [$e.value]) } }"
+                    }
+                  ]
+                ]
+              ]
+            ]
+          ],
+          [
+            "div",
+            { "className": "grid grid-cols-3 auto-rows-[250px] gap-4" },
+            [
+              [ "dashify:CardWithTitleV2", { "title": "Service Health Summary", "span": 1, "className": "col-span-1 rounded-md bg-white drop-shadow-md" }, [
+                  [ "apm:HealthCounts" ]
+                ] ],
+              [ "dashify:CardWithTitleV2", { "title": "Average Response Time", "span": 2, "className": "col-span-2 rounded-md bg-white drop-shadow-md" }, [
+                  [ "apm:MetricCartesian", {
+                      "metricTitle": "Avg Response Time",
+                      "yAxisTitle": "Avg Response Time",
+                      "metricName": "apm:response_time"
+                    } ]
+                ] ],
+              [ "dashify:CardWithTitleV2", { "title": "Total Calls (Average)", "span": 1, "className": "col-span-1 rounded-md bg-white drop-shadow-md" }, [
+                  [ "apm:SingleValue", {
+                      "metricTitle": "Calls per min",
+                      "metricName": "apm:calls_min"
+                    } ]
+                ] ],
+              [ "dashify:CardWithTitleV2", { "title": "Calls per Min", "span": 2, "className": "col-span-2 rounded-md bg-white drop-shadow-md" }, [
+                  [ "apm:MetricCartesian", {
+                      "metricTitle": "Calls per min",
+                      "yAxisTitle": "Calls per min",
+                      "metricName": "apm:calls_min"
+                    } ]
+                ] ],
+              [ "dashify:CardWithTitleV2", { "title": "Total Errors", "span": 1, "className": "col-span-1 rounded-md bg-white drop-shadow-md" }, [
+                  [ "apm:SingleValue", {
+                      "metricTitle": "Errors per min",
+                      "metricName": "apm:errors_min"
+                    } ]
+                ] ],
+              [ "dashify:CardWithTitleV2", { "title": "Errors per Min", "span": 2, "className": "col-span-2 rounded-md bg-white drop-shadow-md" }, [
+                  [ "apm:MetricCartesian", {
+                      "metricTitle": "Errors per min",
+                      "yAxisTitle": "Errors per min",
+                      "metricName": "apm:errors_min"
+                    } ]
+                ] ]
+            ]
+          ],
+          [
+            "div",
+            { "className": "grid grid-cols-2 auto-rows-[500px] gap-4" },
+            [
+              [ "dashify:CardWithTitleV2", { "title": "Incoming Calls To Service Instance", "span": 1, "className": "rounded-md bg-white drop-shadow-md" }, [
+                  [ "apm:IncomingInstanceList" ]
+                ] ],
+              [ "dashify:CardWithTitleV2", { "title": "Outgoing Calls From Service Instance", "span": 1, "className": "rounded-md bg-white drop-shadow-md" }, [
+                  [ "apmOutgoingInstanceList" ]
+                ] ]
+            ]
+          ]
+        ]
+      ]
+    ]
+  }
+}

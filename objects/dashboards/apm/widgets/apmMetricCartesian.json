@@ -1,0 +1,63 @@
+{
+  "__META__!": {
+    "copyright": "Copyright 2023 Cisco Systems, Inc.\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\n     http://www.apache.org/licenses/LICENSE-2.0 \n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License."
+  },
+  "name": "apm:MetricCartesian",
+  "title": "APM Metric (Cartesian)",
+  "owner": "User: Li Yan",
+  "solution": "",
+  "tags": [ ],
+  "createdAt": "Oct 18, 2023, 10:14 AM",
+  "updatedAt": "Oct 18, 2023, 01:24 PM",
+  "globals": {
+    "timerange": {
+      "since": "now-1h",
+      "until": "now"
+    }
+  },
+  "spec": {
+    "props": {
+      "entityType": "",
+      "metricTitle": "",
+      "metricName": "",
+      "yAxisTitle": "",
+      "limit": 20
+    },
+    "highchartsConfig": {
+      "chart": {
+        "type": "area"
+      },
+      "yAxis": {
+        "title": { "text": "/${ props.yAxisTitle }" }
+      }
+    },
+    "variables": {
+      "seriesLength": "/${ $reduce(data.series.data, function ($acc, $val) { $acc + $count($val.data) }, 0) }"
+    },
+    "mainServices": "/${ globals.variables.service}",
+    "instanceFilter": "/${ globals.variables.serviceInstance }",
+    "datasources": {
+      "series": {
+        "type": "uql",
+        "options": {
+          "since": "/${ globals.timerange.since }",
+          "until": "/${ globals.timerange.until }",
+          "propsRef": "/${ props }",
+          "fetch": "/${ 'FETCH attr: attributes(service.instance.id), metrics( ' & props.metricName & ' , `sys:derived`)' }",
+          "from": "FROM entities(apm:service)",
+          "relationship": "/${'[ attributes(service.name) in ' & mainServices & ' ] .out.to(apm:service_instance) [ attributes(service.instance.id) in ' & instanceFilter & ' ]'}",
+          "queryStr": "${ $join([fetch, from, relationship], ' ') }"
+        }
+      }
+    },
+    "view": [
+      [
+        "dashify:Cartesian",
+        {
+          "highchartsConfig": "/${ $defaultsDeep({}, highchartsConfig, { 'series': data.series.data.{'name': attr, 'data': metrics.[timestamp,value][]}[] }) }",
+          "customConfig": "/${ props.customConfig }"
+        }
+      ]
+    ]
+  }
+}

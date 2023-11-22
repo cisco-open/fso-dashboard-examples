@@ -1,0 +1,94 @@
+{
+  "__META__!": {
+    "copyright": "Copyright 2023 Cisco Systems, Inc.\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\n     http://www.apache.org/licenses/LICENSE-2.0 \n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License."
+  },
+  "name": "apm:HealthCounts",
+  "title": "APM Health Counts",
+  "owner": "User: Li Yan",
+  "solution": "",
+  "tags": [ ],
+  "createdAt": "Oct 19, 2023, 10:14 AM",
+  "updatedAt": "Oct 19, 2023, 11:14 AM",
+  "globals": {
+    "timerange": {
+      "since": "now-1h",
+      "until": "now"
+    }
+  },
+  "spec": {
+    "props": {
+      "regions": [ "all" ],
+      "types": [ "all" ],
+      "entityType": "apm:service",
+      "showAsPercent": false,
+      "showExpanded": true
+    },
+    "mainServices": "/${ globals.variables.service}",
+    "fetchNormal": "FETCH Normal: count",
+    "fetchCritical": "FETCH Critical: count",
+    "fetchWarning": "FETCH Warning: count",
+    "fetchUnknown": "FETCH Unknown: count",
+    "from": "/${ 'FROM entities(apm:service) [attributes(service.name) IN ' & mainServices & ' ]' }",
+    "outTo": ".out.to(apm:service_instance)",
+    "normalStatusFilter": "[attributes(status) = 0]",
+    "warningStatusFilter": "[attributes(status) = 2]",
+    "criticalStatusFilter": "[attributes(status) = 3]",
+    "unknownStatusFilter": "[attributes(status) IN [1,null]]",
+    "datasources": {
+      "normalStatus": {
+        "type": "uql",
+        "options": {
+          "since": "/${ globals.timerange.since }",
+          "until": "/${ globals.timerange.until }",
+          "queryStr": "/${ $join([fetchNormal, from, outTo, normalStatusFilter], ' ') }"
+        }
+      },
+      "warningStatus": {
+        "type": "uql",
+        "options": {
+          "since": "/${ globals.timerange.since }",
+          "until": "/${ globals.timerange.until }",
+          "queryStr": "/${ $join([fetchWarning, from, outTo, warningStatusFilter], ' ') }"
+        }
+      },
+      "criticalStatus": {
+        "type": "uql",
+        "options": {
+          "since": "/${ globals.timerange.since }",
+          "until": "/${ globals.timerange.until }",
+          "queryStr": "/${ $join([fetchCritical, from, outTo, criticalStatusFilter], ' ') }"
+        }
+      },
+      "unknownStatus": {
+        "type": "uql",
+        "options": {
+          "since": "/${ globals.timerange.since }",
+          "until": "/${ globals.timerange.until }",
+          "queryStr": "/${ $join([fetchUnknown, from, outTo, unknownStatusFilter], ' ') }"
+        }
+      }
+    },
+    "view": [
+      [
+        "div",
+        {
+          "className": "grow"
+        },
+        [
+          [
+            "dashify:HealthCounts",
+            {
+              "entityType": "apm:service",
+              "showAsPercent": "/${ props.showAsPercent }",
+              "showExpanded": "/${ props.showExpanded }",
+              "critical": "/${ data.criticalStatus.data[0].Critical }",
+              "warning": "/${ data.warningStatus.data[0].Warning }",
+              "unknown": "/${ data.unknownStatus.data[0].Unknown }",
+              "normal": "/${ data.normalStatus.data[0].Normal }"
+            }
+          ]
+        ]
+      ]
+    ]
+  }
+}
